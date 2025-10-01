@@ -8,11 +8,11 @@ if (!isset($_SESSION['sml2020_svenerossys_CREATED'])) {$_SESSION['sml2020_svener
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-          content="Aplitec, cotizaciones">
+          content="Iknow, cotizaciones">
     <meta name="keywords"
-          content="Aplitec, cotizaciones">
+          content="Iknow, cotizaciones">
     <meta name="author" content="la-themes">
     <link rel="icon" href="../assets/images/logo/favicon.png" type="image/x-icon">
     <link rel="shortcut icon" href="../assets/images/logo/favicon.png" type="image/x-icon">
-    <title>APLITEC - cotizaciones</title>
+    <title>IKNOW ENGINEERING - COTIZACIONES</title>
 </head>

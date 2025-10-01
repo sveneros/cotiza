@@ -1,2 +1,2 @@
 <?php 
-$server="localhost";$usr="root";$pwd="";$dbname="aplitec_db";?>
+$server="localhost";$usr="root";$pwd="";$dbname="cotiza_db";?>
