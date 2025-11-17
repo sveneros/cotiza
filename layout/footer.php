@@ -39,7 +39,6 @@
 <?php
 include('../layout/script.php');
 ?>
-<script src="https://cdn.botpress.cloud/webchat/v3.2/inject.js" defer></script>
-<script src="https://files.bpcontent.cloud/2025/05/16/16/20250516162642-8N7MR309.js" defer></script>
+
 </body>
 </html>
