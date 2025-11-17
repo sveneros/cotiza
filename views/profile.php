@@ -13,7 +13,7 @@
                             <li class="">
                                 <a href="#" class="f-s-14 f-w-500">
                       <span>
-                        <i class="ph-duotone  ph-newspaper f-s-16"></i> Aplitec
+                        <i class="ph-duotone  ph-newspaper f-s-16"></i> IKNOW
                       </span>
                                 </a>
                             </li>

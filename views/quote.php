@@ -287,9 +287,9 @@ function renderizarQuote(quote) {
                     <div class="col-md-6">
                         <img src="../assets/images/logo/1.png" class="logo" alt="Logo">
                         <div class="company-info">
-                            <p>Av. 20 de Octubre Nro 2332, Edif. Guadalquivir</p>
-                            <p>Tel/Fax: 2417461</p>
-                            <p>Email: info@aplitec.com</p>
+                            <p>Av. Irpavi 3334, Piso 1</p>
+                            <p>Tel/Fax: 22332223</p>
+                            <p>Email: info@IKNOWENGINEERING.com</p>
                             <p>La Paz - Bolivia</p>
                         </div>
                     </div>
@@ -390,7 +390,7 @@ function renderizarQuote(quote) {
                     <p>Atentamente,</p>
                     <p class="mt-5">_________________________</p>
                     <p>${quote.vendedor || 'Representante de Ventas'}</p>
-                    <p>Aplitec S.R.L.</p>
+                    <p>IKNOW ENGINEERING S.R.L.</p>
                 </div>
             </div>
         </div>
@@ -549,9 +549,9 @@ function generatePDF() {
         
         // Información de la empresa
         doc.setFontSize(10);
-        doc.text('Av. 20 de Octubre Nro 2332, Edif. Guadalquivir', pageWidth - margin, currentY, {align: 'right'});
-        doc.text('Tel/Fax: 2417461', pageWidth - margin, currentY + lineHeight, {align: 'right'});
-        doc.text('Email: info@aplitec.com', pageWidth - margin, currentY + (lineHeight * 2), {align: 'right'});
+        doc.text('Av. Irpavi, Piso 1', pageWidth - margin, currentY, {align: 'right'});
+        doc.text('Tel/Fax: 7777', pageWidth - margin, currentY + lineHeight, {align: 'right'});
+        doc.text('Email: INFO@IKNOWENGINEERING.com', pageWidth - margin, currentY + (lineHeight * 2), {align: 'right'});
         doc.text('La Paz - Bolivia', pageWidth - margin, currentY + (lineHeight * 3), {align: 'right'});
         
         currentY += 25;
@@ -663,7 +663,7 @@ function generatePDF() {
     finalY += lineHeight;
     doc.text(`${quote.vendedor || 'Representante de Ventas'}`, pageWidth - margin, finalY, {align: 'right'});
     finalY += lineHeight;
-    doc.text(`Aplitec S.R.L.`, pageWidth - margin, finalY, {align: 'right'});
+    doc.text(`IKNOW ENGINEERING S.R.L.`, pageWidth - margin, finalY, {align: 'right'});
     
     // Guardar el PDF
     doc.save(`Cotizacion_${quote.numero}.pdf`);

@@ -46,7 +46,7 @@ include('../layout/header.php');
                                                                     <address>
                                                                         Av. 20 de Octubre Nro 2332, Edif. Guadalquivir<BR>
                                                                         Tel/Fax: 2417461 <br>
-                                                                        Email: info@aplitec.com<br>
+                                                                        Email: INFO@IKNOWENGINEERING.COM<br>
                                                                         La Paz - Bolivia
                                                                     </address>
                             
