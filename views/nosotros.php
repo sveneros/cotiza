@@ -53,10 +53,10 @@ include('../layout/header_clientes.php');
               <div class="row">
                 <div class="col-md-3 col-sm-6 mb-4">
                   <div class="card text-center border-0">
-                    <img src="../assets/images/team/1.jpg" class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px; object-fit: cover;" alt="Miembro del equipo">
+                    <img src="../assets/images/ai_avtar/3.jpg"  class="card-img-top rounded-circle mx-auto mt-3" style="width: 150px; height: 150px; object-fit: cover;" alt="Miembro del equipo">
                     <div class="card-body">
-                      <h5 class="card-title">Juan Pérez</h5>
-                      <p class="card-text text-secondary">CEO & Fundador</p>
+                      <h5 class="card-title">Jorge Gustavo Palabral Velarde</h5>
+                      <p class="card-text text-secondary">CEO & Generente General</p>
                     </div>
                   </div>
                 </div>

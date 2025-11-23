@@ -35,7 +35,7 @@ include('../layout/header.php');
           </div>
           </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary waves-effect" id="btn_submit_email1">Guardar</button>
+          <button type="submit" class="btn btn-primary waves-effect" id="btn_submit_email1">Enivar</button>
           <button type="button" class="btn btn-secondary waves-effect" data-bs-dismiss="modal">Cancelar</button>
         </div>
         </form>

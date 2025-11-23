@@ -10,7 +10,7 @@ include('../layout/header.php');
     <div class="col-12 ">
     <button type="button" class="btn btn-secondary m-1 float-end" onclick="window.print()"><i
     class="ti ti-printer"></i> Imprimir</button>
-      <h4 class="main-title">Logs</h4>
+      <h4 class="main-title">Pistas de auditoría</h4>
       <ul class="app-line-breadcrumbs mb-3">
         <li class="">
           <a href="#" class="f-s-14 f-w-500">

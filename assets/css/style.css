@@ -11409,7 +11409,7 @@ body[style="overflow: hidden; padding-right: 17px;"] .app-wrapper nav.horizontal
 
 nav {
   width: 17rem;
-  height: 100vh;
+  height: 120vh;
   display: inline-block;
   box-shadow: 0 -0.8rem 1.2rem var(--light-gray);
   position: fixed;
@@ -11419,7 +11419,7 @@ nav {
   border-bottom-right-radius: 25px;
 }
 nav .app-logo {
-  padding: 1.5rem 1.5rem 0 1.5rem;
+  padding: 1.5rem 1.5rem 1.5rem 1.5rem;
 }
 nav .app-logo .logo img {
   width: 140px;
@@ -11668,7 +11668,7 @@ nav .app-nav .menu-item .btn .ti:before {
 .app-wrapper nav.horizontal-sidebar {
   width: 100%;
   height: 45px;
-  top: 69px;
+  top: 79px;
   left: 0;
   box-shadow: none;
   border-bottom: 1px solid var(--border_color);
@@ -11753,7 +11753,7 @@ nav .app-nav .menu-item .btn .ti:before {
 }
 .app-wrapper nav.horizontal-sidebar .app-logo .logo {
   position: absolute;
-  top: -48px;
+  top: -68px;
   padding: 0;
   left: 18px;
 }
