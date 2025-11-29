@@ -46,7 +46,7 @@ try {
     die("Error de conexión: " . $e->getMessage());
 }
 
-function ejecutarAlgoritmoGenetico(PDO $pdo, int $generaciones = 30, int $tamanoPoblacion = 20): array {
+function ejecutarAlgoritmoGenetico(PDO $pdo, int $generaciones = 12, int $tamanoPoblacion = 20): array {
     // Obtener todos los productos distintos de la base de datos
     $productos = obtenerProductos($pdo);
     
