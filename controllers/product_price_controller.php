@@ -147,8 +147,10 @@ function updateProductCostFactors($productId, $costData) {
     }
 }
 
-function getPricingAnalysisData() {
+function getPricingAnalysisData($limit = 30, $offset = 0, $productIds = []) {
     $link = conectarse();
+    
+    // Construir la consulta base
     $query = "
         SELECT 
             p.id,
@@ -163,6 +165,7 @@ function getPricingAnalysisData() {
             pcf.insurance,
             pcf.customs_fees,
             pcf.currency_exchange_rate,
+            pcf.currency_code,
             pcf.profit_margin,
             pcf.market_demand_factor,
             pcf.competition_factor,
@@ -194,15 +197,25 @@ function getPricingAnalysisData() {
             productos p
         JOIN 
             product_cost_factors pcf ON p.id = pcf.product_id
-        ORDER BY 
-            ABS(
-                ((((pcf.base_cost * (1 + pcf.import_tax / 100)) + 
-                pcf.shipping_cost + pcf.local_transport + 
-                pcf.storage_cost + pcf.insurance + pcf.customs_fees) * 
-                (1 + pcf.profit_margin / 100) * 
-                pcf.market_demand_factor * pcf.competition_factor) - p.puntos) / p.puntos * 100
-            ) DESC
     ";
+    
+    // Agregar filtro por IDs de productos si se especifican
+    if (!empty($productIds)) {
+        $productIds = array_map('intval', $productIds);
+        $idsString = implode(',', $productIds);
+        $query .= " WHERE p.id IN ($idsString)";
+    }
+    
+    // Agregar ordenamiento y límites
+    $query .= " ORDER BY p.codigo ASC";
+    
+    // Agregar límites para paginación
+    if ($limit > 0) {
+        $query .= " LIMIT $limit";
+        if ($offset > 0) {
+            $query .= " OFFSET $offset";
+        }
+    }
     
     $result = mysqli_query($link, $query);
     
@@ -230,6 +243,26 @@ function getPricingAnalysisData() {
     
     mysqli_close($link);
     return $analysisData;
+}
+
+// Función para obtener el total de productos disponibles
+function getTotalProductsCount($productIds = []) {
+    $link = conectarse();
+    
+    $query = "SELECT COUNT(*) as total FROM productos p JOIN product_cost_factors pcf ON p.id = pcf.product_id";
+    
+    if (!empty($productIds)) {
+        $productIds = array_map('intval', $productIds);
+        $idsString = implode(',', $productIds);
+        $query .= " WHERE p.id IN ($idsString)";
+    }
+    
+    $result = mysqli_query($link, $query);
+    $row = mysqli_fetch_assoc($result);
+    $total = $row['total'];
+    
+    mysqli_close($link);
+    return $total;
 }
 
 // Handle the request based on the HTTP method
@@ -263,8 +296,46 @@ try {
                         }
                         break;
                     case 'pricing_analysis':
-                        $data = getPricingAnalysisData();
-                        echo json_encode($data);
+                        // Parámetros para paginación y filtrado
+                        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 30;
+                        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+                        $offset = ($page - 1) * $limit;
+                        
+                        // Filtro por IDs de productos
+                        $productIds = [];
+                        if (isset($_GET['product_ids'])) {
+                            $productIds = explode(',', $_GET['product_ids']);
+                        }
+                        
+                        $data = getPricingAnalysisData($limit, $offset, $productIds);
+                        $total = getTotalProductsCount($productIds);
+                        
+                        echo json_encode([
+                            'data' => $data,
+                            'pagination' => [
+                                'total' => $total,
+                                'page' => $page,
+                                'limit' => $limit,
+                                'pages' => ceil($total / $limit)
+                            ]
+                        ]);
+                        break;
+                    case 'available_products':
+                        // Obtener lista de productos disponibles para el filtro
+                        $link = conectarse();
+                        $query = "SELECT p.id, p.codigo, p.nombre 
+                                 FROM productos p 
+                                 JOIN product_cost_factors pcf ON p.id = pcf.product_id 
+                                 ORDER BY p.codigo";
+                        $result = mysqli_query($link, $query);
+                        
+                        $products = [];
+                        while ($row = mysqli_fetch_assoc($result)) {
+                            $products[] = $row;
+                        }
+                        
+                        mysqli_close($link);
+                        echo json_encode($products);
                         break;
                     default:
                         throw new Exception("Acción no válida");

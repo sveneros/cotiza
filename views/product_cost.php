@@ -20,6 +20,54 @@
     </div>
   </div>
 
+  <!-- Filtros y controles -->
+  <div class="row mb-3">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>Filtros del Reporte</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Productos a mostrar</label>
+              <select class="form-select" id="productFilter">
+                <option value="all">Todos los productos</option>
+                <option value="selected">Seleccionar productos específicos</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Cantidad por página</label>
+              <select class="form-select" id="limitFilter">
+                <option value="10">10 productos</option>
+                <option value="30" selected>30 productos</option>
+                <option value="50">50 productos</option>
+                <option value="100">100 productos</option>
+                <option value="0">Todos</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Productos específicos</label>
+              <select class="form-select" id="productSelect" multiple style="height: 100px;" disabled>
+                <option value="">Cargando productos...</option>
+              </select>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <button type="button" class="btn btn-primary" id="applyFilters">
+                <i class="fa fa-filter"></i> Aplicar Filtros
+              </button>
+              <button type="button" class="btn btn-secondary" id="resetFilters">
+                <i class="fa fa-refresh"></i> Restablecer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row">
     <div class="col-md-12">
       <div class="card">
@@ -44,18 +92,17 @@
         </div>
       </div>
     </div>
-    
-    <!-- <div class="col-md-6">
-      <div class="card">
-        <div class="card-header">
-          <h5>Comparación Precio Actual vs Sugerido</h5>
-        </div>
-        <div class="card-body">
-          <div id="priceComparisonChart" style="height: 300px;"></div>
-        </div>
-      </div>
-    </div>-->
   </div> 
+
+  <!-- Paginación -->
+  <div class="row mt-3">
+    <div class="col-md-12">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center" id="pagination">
+        </ul>
+      </nav>
+    </div>
+  </div>
 
   <div class="row mt-4">
     <div class="col-md-12">
@@ -187,31 +234,176 @@
 <script>
 $(document).ready(function() {
     let pricingData = [];
+    let currentPage = 1;
+    let currentLimit = 30;
+    let currentProductIds = [];
+    let priceSummaryChart = null;
+    let costDistributionChart = null;
+    
+    // Cargar productos disponibles para el filtro
+    function loadAvailableProducts() {
+        $.get('../controllers/product_price_controller.php?action=available_products', function(products) {
+            const $productSelect = $('#productSelect');
+            $productSelect.empty();
+            
+            // Usar un objeto para evitar duplicados
+            const uniqueProducts = {};
+            products.forEach(function(product) {
+                uniqueProducts[product.id] = product;
+            });
+            
+            // Agregar productos únicos al select
+            Object.values(uniqueProducts).forEach(function(product) {
+                $productSelect.append(
+                    $('<option>', {
+                        value: product.id,
+                        text: product.codigo + ' - ' + product.nombre
+                    })
+                );
+            });
+        }).fail(function() {
+            console.error("Error al cargar productos disponibles");
+            $('#productSelect').html('<option value="">Error al cargar productos</option>');
+        });
+    }
+    
+    // Manejar cambio en el filtro de productos
+    $('#productFilter').change(function() {
+        if ($(this).val() === 'selected') {
+            $('#productSelect').prop('disabled', false);
+        } else {
+            $('#productSelect').prop('disabled', true);
+            $('#productSelect').val([]);
+        }
+    });
+    
+    // Aplicar filtros
+    $('#applyFilters').click(function() {
+        currentPage = 1;
+        currentLimit = parseInt($('#limitFilter').val());
+        
+        if ($('#productFilter').val() === 'selected') {
+            currentProductIds = $('#productSelect').val();
+            if (currentProductIds.length === 0) {
+                Swal.fire('Advertencia', 'Por favor seleccione al menos un producto', 'warning');
+                return;
+            }
+        } else {
+            currentProductIds = [];
+        }
+        
+        loadData();
+    });
+    
+    // Restablecer filtros
+    $('#resetFilters').click(function() {
+        $('#productFilter').val('all');
+        $('#limitFilter').val('30');
+        $('#productSelect').prop('disabled', true).val([]);
+        currentPage = 1;
+        currentLimit = 30;
+        currentProductIds = [];
+        loadData();
+    });
     
     // Cargar datos iniciales
     function loadData() {
-        $.get('../controllers/product_price_controller.php?action=pricing_analysis', function(data) {
-            pricingData = data;
-            initCharts(data);
-            initDataTable(data);
+        const params = {
+            limit: currentLimit,
+            page: currentPage
+        };
+        
+        if (currentProductIds.length > 0) {
+            params.product_ids = currentProductIds.join(',');
+        }
+        
+        const queryString = new URLSearchParams(params).toString();
+        
+        $.get(`../controllers/product_price_controller.php?action=pricing_analysis&${queryString}`, function(response) {
+            pricingData = response.data;
+            initCharts(response.data);
+            initDataTable(response.data);
+            initPagination(response.pagination);
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error("Error al cargar datos:", textStatus, errorThrown);
             Swal.fire('Error', 'No se pudieron cargar los datos de precios', 'error');
         });
     }
     
+    // Inicializar paginación
+    function initPagination(pagination) {
+        const $pagination = $('#pagination');
+        $pagination.empty();
+        
+        const totalPages = pagination.pages;
+        const current = pagination.page;
+        
+        if (totalPages <= 1) {
+            return; // No mostrar paginación si solo hay una página
+        }
+        
+        // Botón anterior
+        const prevDisabled = current <= 1 ? 'disabled' : '';
+        $pagination.append(`
+            <li class="page-item ${prevDisabled}">
+                <a class="page-link" href="#" data-page="${current - 1}">Anterior</a>
+            </li>
+        `);
+        
+        // Números de página
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, current - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+        
+        if (endPage - startPage + 1 < maxPagesToShow) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const active = i === current ? 'active' : '';
+            $pagination.append(`
+                <li class="page-item ${active}">
+                    <a class="page-link" href="#" data-page="${i}">${i}</a>
+                </li>
+            `);
+        }
+        
+        // Botón siguiente
+        const nextDisabled = current >= totalPages ? 'disabled' : '';
+        $pagination.append(`
+            <li class="page-item ${nextDisabled}">
+                <a class="page-link" href="#" data-page="${current + 1}">Siguiente</a>
+            </li>
+        `);
+    }
+    
+    // Manejar clic en paginación
+    $(document).on('click', '.page-link', function(e) {
+        e.preventDefault();
+        const page = $(this).data('page');
+        if (page && page !== currentPage) {
+            currentPage = page;
+            loadData();
+        }
+    });
+    
     // Inicializar gráficos
     function initCharts(data) {
         if (!data || data.length === 0) {
             console.error("No se recibieron datos para los gráficos");
+            $('#priceSummaryChart').html('<div class="alert alert-warning text-center">No hay datos para mostrar</div>');
+            $('#costDistributionChart').html('<div class="alert alert-warning text-center">No hay datos para mostrar</div>');
             return;
         }
+        
+        // Limpiar contenedores de gráficos
+        $('#priceSummaryChart').html('');
+        $('#costDistributionChart').html('');
         
         // Preparar datos para gráficos
         const labels = data.map(item => item.codigo);
         const currentPrices = data.map(item => parseFloat(item.precio_actual));
         const suggestedPrices = data.map(item => parseFloat(item.precio_sugerido));
-        const differences = data.map(item => parseFloat(item.diferencia));
         
         // Gráfico de resumen de precios
         const priceSummaryOptions = {
@@ -270,7 +462,16 @@ $(document).ready(function() {
             }
         };
         
-        const priceSummaryChart = new ApexCharts(document.querySelector("#priceSummaryChart"), priceSummaryOptions);
+        // Destruir gráfico anterior si existe
+        if (priceSummaryChart) {
+            try {
+                priceSummaryChart.destroy();
+            } catch (e) {
+                console.log('No se pudo destruir el gráfico anterior:', e);
+            }
+        }
+        
+        priceSummaryChart = new ApexCharts(document.querySelector("#priceSummaryChart"), priceSummaryOptions);
         priceSummaryChart.render();
         
         // Gráfico de distribución de costos (usando el primer producto como ejemplo)
@@ -306,7 +507,7 @@ $(document).ready(function() {
                     }
                 }],
                 title: {
-                    text: 'Distribución de Costos',
+                    text: 'Distribución de Costos - ' + sampleProduct.codigo,
                     align: 'center'
                 },
                 legend: {
@@ -321,80 +522,18 @@ $(document).ready(function() {
                 }
             };
             
-            const costDistributionChart = new ApexCharts(document.querySelector("#costDistributionChart"), costDistributionOptions);
-            costDistributionChart.render();
-        }
-        
-        // Gráfico de comparación de precios
-        const priceComparisonOptions = {
-            series: [{
-                name: 'Diferencia',
-                data: differences
-            }],
-            chart: {
-                type: 'bar',
-                height: 300,
-                toolbar: {
-                    show: true
-                }
-            },
-            plotOptions: {
-                bar: {
-                    borderRadius: 4,
-                    horizontal: true,
-                    distributed: true,
-                    dataLabels: {
-                        position: 'bottom'
-                    }
-                }
-            },
-            colors: function({ value }) {
-                if (value < 0) {
-                    return '#ff006e'; // Rojo para precios actuales mayores
-                } else if (value > 0) {
-                    return '#3a86ff'; // Azul para precios sugeridos mayores
-                } else {
-                    return '#ffbe0b'; // Amarillo para iguales
-                }
-            },
-            dataLabels: {
-                enabled: true,
-                formatter: function(val) {
-                    return "Bs. " + Math.abs(val).toFixed(2);
-                },
-                style: {
-                    colors: ['#333']
-                }
-            },
-            xaxis: {
-                categories: labels,
-                title: {
-                    text: 'Diferencia (Bs.)'
-                },
-                labels: {
-                    formatter: function(val) {
-                        return "Bs. " + Math.abs(val).toFixed(2);
-                    }
-                }
-            },
-            yaxis: {
-                labels: {
-                    style: {
-                        fontSize: '12px'
-                    }
-                }
-            },
-            tooltip: {
-                y: {
-                    formatter: function(val) {
-                        return "Bs. " + val.toFixed(2);
-                    }
+            // Destruir gráfico anterior si existe
+            if (costDistributionChart) {
+                try {
+                    costDistributionChart.destroy();
+                } catch (e) {
+                    console.log('No se pudo destruir el gráfico anterior:', e);
                 }
             }
-        };
-        
-        const priceComparisonChart = new ApexCharts(document.querySelector("#priceComparisonChart"), priceComparisonOptions);
-        priceComparisonChart.render();
+            
+            costDistributionChart = new ApexCharts(document.querySelector("#costDistributionChart"), costDistributionOptions);
+            costDistributionChart.render();
+        }
     }
     
     // Inicializar tabla de datos
@@ -417,7 +556,12 @@ $(document).ready(function() {
                         return data || 'USD';
                     }
                 },
-                { data: 'currency_exchange_rate' },
+                { 
+                    data: 'currency_exchange_rate',
+                    render: function(data) {
+                        return parseFloat(data).toFixed(4);
+                    }
+                },
                 { 
                     data: 'precio_actual',
                     render: function(data) {
@@ -434,9 +578,10 @@ $(document).ready(function() {
                     data: 'porcentaje_diferencia',
                     render: function(data, type, row) {
                         const diff = parseFloat(data);
-                        const diffClass = diff > 0 ? 'text-success' : 'text-danger';
-                        const icon = diff > 0 ? '↑' : '↓';
-                        return `<span class="${diffClass}">${icon} ${Math.abs(diff).toFixed(2)}%</span>`;
+                        const diffClass = diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-warning';
+                        const icon = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+                        const sign = diff > 0 ? '+' : '';
+                        return `<span class="${diffClass}">${icon} ${sign}${diff.toFixed(2)}%</span>`;
                     }
                 },
                 {
@@ -449,13 +594,14 @@ $(document).ready(function() {
                 }
             ],
             order: [[0, 'asc']],
-            pageLength: 10,
-            responsive: true
+            pageLength: currentLimit > 0 ? currentLimit : data.length,
+            responsive: true,
+           
         });
     }
     
     // Manejar clic en botón editar
-    $('#costFactorsTable').on('click', '.edit-cost', function() {
+    $(document).on('click', '.edit-cost', function() {
         const productId = $(this).data('id');
         loadProductCostData(productId);
     });
@@ -478,6 +624,8 @@ $(document).ready(function() {
             
             calculateAndDisplaySuggestedPrice();
             $('#costModal').modal('show');
+        }).fail(function() {
+            Swal.fire('Error', 'No se pudieron cargar los datos del producto', 'error');
         });
     }
 
@@ -506,6 +654,8 @@ $(document).ready(function() {
 
         $.get(`../controllers/product_price_controller.php?action=suggested_price&id=${productId}`, costData, function(response) {
             $('#suggested_price_display').text('$' + parseFloat(response.suggested_price).toFixed(2));
+        }).fail(function() {
+            $('#suggested_price_display').text('$0.00 (Error)');
         });
     }
 
@@ -557,6 +707,7 @@ $(document).ready(function() {
     });
     
     // Cargar datos iniciales
+    loadAvailableProducts();
     loadData();
 });
 </script>

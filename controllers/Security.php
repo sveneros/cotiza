@@ -10,14 +10,57 @@ class Security {
         $encrypted = openssl_encrypt($texto, $ciphering,$encryption_key, $options, $encryption_iv);  
         return $encrypted;
     }
-    public static function decrypt($encryption) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    /* public static function decrypt($encryption) {
         $ciphering = "AES-128-CTR";
         $options = 0;
         $decryption_iv = '1234567891011121';
         $decryption_key = "SelenitaVenerosMamani";
         $decryption=openssl_decrypt ($encryption, $ciphering,$decryption_key, $options, $decryption_iv);
         return $decryption;
-    }
+    } */
             
 }
 ?>
