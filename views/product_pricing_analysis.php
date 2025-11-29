@@ -21,8 +21,6 @@
     </div>
   </div>
 
-  
-
   <div class="row mt-4">
     <div class="col-md-6">
       <div class="card">
@@ -66,19 +64,6 @@
       </div>
     </div>
   </div>
-
-  <!-- <div class="row">
-    <div class="col-md-12">
-      <div class="card">
-        <div class="card-header">
-          <h5>Comparación de Precios Actuales vs Sugeridos</h5>
-        </div>
-        <div class="card-body">
-          <div id="priceComparisonChart" style="height: 350px;"></div>
-        </div>
-      </div>
-    </div>
-  </div> -->
 
   <div class="row mt-4">
     <div class="col-md-12">
@@ -129,160 +114,64 @@
 <script>
 $(document).ready(function() {
     // Cargar datos de análisis
-    $.get('../controllers/product_price_controller.php?action=pricing_analysis', function(data) {
-        initCharts(data);
-        initDeviationTable(data);
+    $.get('../controllers/product_price_controller.php?action=pricing_analysis', function(response) {
+        // Verificar y procesar la respuesta
+        let analysisData = processResponseData(response);
+        initCharts(analysisData);
+        initDeviationTable(analysisData);
     }).fail(function(jqXHR, textStatus, errorThrown) {
         console.error("Error al cargar datos:", textStatus, errorThrown);
+        showErrorMessage("Error al cargar los datos de análisis de precios");
     });
+
+    function processResponseData(response) {
+        // Si la respuesta es un string, intentar parsearla como JSON
+        if (typeof response === 'string') {
+            try {
+                response = JSON.parse(response);
+            } catch (e) {
+                console.error("Error al parsear JSON:", e);
+                return [];
+            }
+        }
+        
+        // Verificar si response tiene una propiedad data o es directamente el array
+        if (Array.isArray(response)) {
+            return response;
+        } else if (response && Array.isArray(response.data)) {
+            return response.data;
+        } else if (response && response.success !== undefined && Array.isArray(response.data)) {
+            return response.data;
+        } else {
+            console.error("Formato de respuesta inesperado:", response);
+            return [];
+        }
+    }
+
+    function showErrorMessage(message) {
+        // Mostrar mensaje de error al usuario
+        alert(message);
+    }
 
     function initCharts(analysisData) {
         // Verificar si hay datos
         if (!analysisData || analysisData.length === 0) {
             console.error("No se recibieron datos para los gráficos");
+            showErrorMessage("No hay datos disponibles para mostrar los gráficos");
             return;
         }
 
         // Preparar datos para gráficos
         const labels = analysisData.map(item => item.nombre.substring(0, 15) + (item.nombre.length > 15 ? '...' : ''));
-        const currentPrices = analysisData.map(item => parseFloat(item.precio_actual));
-        const suggestedPrices = analysisData.map(item => parseFloat(item.precio_sugerido));
-        const differences = analysisData.map(item => parseFloat(item.diferencia));
-        const percentageDifferences = analysisData.map(item => parseFloat(item.porcentaje_diferencia));
+        const currentPrices = analysisData.map(item => parseFloat(item.precio_actual) || 0);
+        const suggestedPrices = analysisData.map(item => parseFloat(item.precio_sugerido) || 0);
+        const differences = analysisData.map(item => parseFloat(item.diferencia) || 0);
+        const percentageDifferences = analysisData.map(item => parseFloat(item.porcentaje_diferencia) || 0);
         
-        // Gráfico de comparación de precios (ocupando todo el ancho)
-        var priceComparisonOptions = {
-            series: [{
-                name: 'Precio Actual',
-                data: currentPrices
-            }, {
-                name: 'Precio Sugerido (IA)',
-                data: suggestedPrices
-            }],
-            chart: {
-                type: 'bar',
-                height: 350,
-                toolbar: {
-                    show: true,
-                    tools: {
-                        download: true,
-                        selection: true,
-                        zoom: true,
-                        zoomin: true,
-                        zoomout: true,
-                        pan: true,
-                        reset: true
-                    }
-                },
-                animations: {
-                    enabled: true,
-                    easing: 'easeinout',
-                    speed: 800
-                }
-            },
-            plotOptions: {
-                bar: {
-                    horizontal: false,
-                    columnWidth: '55%',
-                    endingShape: 'rounded',
-                    dataLabels: {
-                        position: 'top'
-                    }
-                },
-            },
-            dataLabels: {
-                enabled: true,
-                formatter: function(val) {
-                    return "Bs. " + val.toFixed(2);
-                },
-                offsetY: -20,
-                style: {
-                    fontSize: '12px',
-                    colors: ["#333"]
-                }
-            },
-            colors: ['#3a86ff', '#8338ec'],
-            stroke: {
-                show: true,
-                width: 2,
-                colors: ['transparent']
-            },
-            xaxis: {
-                categories: labels,
-                labels: {
-                    rotate: -45,
-                    style: {
-                        fontSize: '12px'
-                    },
-                    formatter: function(value) {
-                       // return value.length > 15 ? value.substring(0, 15) + '...' : value;
-                    }
-                },
-                tickPlacement: 'on'
-            },
-            yaxis: {
-                title: {
-                    text: 'Precio (Bs.)',
-                    style: {
-                        fontSize: '14px'
-                    }
-                },
-                min: 0,
-                labels: {
-                    formatter: function(val) {
-                        return "Bs. " + val.toFixed(2);
-                    }
-                }
-            },
-            fill: {
-                opacity: 0.8,
-                gradient: {
-                    shade: 'light',
-                    type: "vertical",
-                    shadeIntensity: 0.25,
-                    gradientToColors: undefined,
-                    inverseColors: true,
-                    opacityFrom: 0.85,
-                    opacityTo: 0.85,
-                    stops: [0, 100]
-                }
-            },
-            tooltip: {
-                y: {
-                    formatter: function(val) {
-                        return "Bs. " + val.toFixed(2);
-                    }
-                },
-                shared: true,
-                intersect: false
-            },
-            legend: {
-                position: 'top',
-                horizontalAlign: 'center',
-                offsetY: -5
-            },
-            responsive: [{
-                breakpoint: 1000,
-                options: {
-                    plotOptions: {
-                        bar: {
-                            columnWidth: '70%'
-                        }
-                    },
-                    dataLabels: {
-                        enabled: false
-                    }
-                }
-            }]
-        };
-
-        var priceComparisonChart = new ApexCharts(document.querySelector("#priceComparisonChart"), priceComparisonOptions);
-        priceComparisonChart.render();
-
         // Gráfico de distribución de diferencias
-        const higherCurrent = analysisData.filter(item => parseFloat(item.diferencia) < 0).length;
-        const higherSuggested = analysisData.filter(item => parseFloat(item.diferencia) > 0).length;
-        const equalPrices = analysisData.filter(item => parseFloat(item.diferencia) === 0).length;
+        const higherCurrent = analysisData.filter(item => (parseFloat(item.diferencia) || 0) < 0).length;
+        const higherSuggested = analysisData.filter(item => (parseFloat(item.diferencia) || 0) > 0).length;
+        const equalPrices = analysisData.filter(item => (parseFloat(item.diferencia) || 0) === 0).length;
         
         var differenceDistributionOptions = {
             series: [higherCurrent, higherSuggested, equalPrices],
@@ -312,7 +201,7 @@ $(document).ready(function() {
                 position: 'bottom',
                 formatter: function(seriesName, opts) {
                     const total = opts.w.globals.series.reduce((a, b) => a + b, 0);
-                    const percentage = Math.round((opts.w.globals.series[opts.seriesIndex] / total) * 100);
+                    const percentage = total > 0 ? Math.round((opts.w.globals.series[opts.seriesIndex] / total) * 100) : 0;
                     return seriesName + ': ' + percentage + '%';
                 }
             },
@@ -320,7 +209,7 @@ $(document).ready(function() {
                 y: {
                     formatter: function(value) {
                         const total = higherCurrent + higherSuggested + equalPrices;
-                        const percentage = Math.round((value / total) * 100);
+                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                         return value + ' productos (' + percentage + '%)';
                     }
                 }
@@ -348,13 +237,13 @@ $(document).ready(function() {
 
         // Gráfico de Top 5 desviaciones
         const sortedByDeviation = [...analysisData].sort((a, b) => 
-            Math.abs(parseFloat(b.porcentaje_diferencia)) - Math.abs(parseFloat(a.porcentaje_diferencia))
+            Math.abs(parseFloat(b.porcentaje_diferencia) || 0) - Math.abs(parseFloat(a.porcentaje_diferencia) || 0)
         ).slice(0, 5);
         
         var topDeviationOptions = {
             series: [{
                 name: '% Diferencia',
-                data: sortedByDeviation.map(item => parseFloat(item.porcentaje_diferencia))
+                data: sortedByDeviation.map(item => parseFloat(item.porcentaje_diferencia) || 0)
             }],
             chart: {
                 type: 'bar',
@@ -419,13 +308,13 @@ $(document).ready(function() {
         if (analysisData.length > 0) {
             const sampleProduct = analysisData[0];
             const costData = [
-                parseFloat(sampleProduct.base_cost_local),
-                parseFloat(sampleProduct.base_cost_local * sampleProduct.import_tax / 100),
-                parseFloat(sampleProduct.shipping_cost),
-                parseFloat(sampleProduct.local_transport),
-                parseFloat(sampleProduct.storage_cost),
-                parseFloat(sampleProduct.insurance),
-                parseFloat(sampleProduct.customs_fees)
+                parseFloat(sampleProduct.base_cost_local) || 0,
+                parseFloat(sampleProduct.base_cost_local * (sampleProduct.import_tax || 0) / 100) || 0,
+                parseFloat(sampleProduct.shipping_cost) || 0,
+                parseFloat(sampleProduct.local_transport) || 0,
+                parseFloat(sampleProduct.storage_cost) || 0,
+                parseFloat(sampleProduct.insurance) || 0,
+                parseFloat(sampleProduct.customs_fees) || 0
             ];
             
             var costBreakdownOptions = {
@@ -462,19 +351,19 @@ $(document).ready(function() {
                 legend: {
                     position: 'bottom',
                     formatter: function(seriesName, opts) {
-                        return seriesName + ': Bs. ' + opts.w.globals.series[opts.seriesIndex].toFixed(2);
+                        return seriesName + ': Bs. ' + (opts.w.globals.series[opts.seriesIndex] || 0).toFixed(2);
                     }
                 },
                 tooltip: {
                     y: {
                         formatter: function(value) {
-                            return "Bs. " + value.toFixed(2);
+                            return "Bs. " + (value || 0).toFixed(2);
                         }
                     }
                 },
                 dataLabels: {
                     formatter: function(val, opts) {
-                        return opts.w.config.labels[opts.seriesIndex] + ': Bs. ' + val.toFixed(2);
+                        return opts.w.config.labels[opts.seriesIndex] + ': Bs. ' + (val || 0).toFixed(2);
                     }
                 }
             };
@@ -487,9 +376,9 @@ $(document).ready(function() {
         const radarSeries = analysisData.slice(0, 5).map(product => ({
             name: product.nombre.substring(0, 15) + (product.nombre.length > 15 ? '...' : ''),
             data: [
-                parseFloat(product.profit_margin),
-                parseFloat(product.market_demand_factor) * 100,
-                parseFloat(product.competition_factor) * 100
+                parseFloat(product.profit_margin) || 0,
+                (parseFloat(product.market_demand_factor) || 0) * 100,
+                (parseFloat(product.competition_factor) || 0) * 100
             ]
         }));
         
@@ -577,28 +466,28 @@ $(document).ready(function() {
                 { 
                     data: 'nombre',
                     render: function(data, type, row) {
-                        if (type === 'display' && data.length > 30) {
+                        if (type === 'display' && data && data.length > 30) {
                             return data.substring(0, 30) + '...';
                         }
-                        return data;
+                        return data || '';
                     }
                 },
                 { 
                     data: 'precio_actual',
                     render: function(data) {
-                        return 'Bs. ' + parseFloat(data).toFixed(2);
+                        return 'Bs. ' + (parseFloat(data) || 0).toFixed(2);
                     }
                 },
                 { 
                     data: 'precio_sugerido',
                     render: function(data) {
-                        return 'Bs. ' + parseFloat(data).toFixed(2);
+                        return 'Bs. ' + (parseFloat(data) || 0).toFixed(2);
                     }
                 },
                 { 
                     data: 'diferencia',
                     render: function(data) {
-                        const diff = parseFloat(data);
+                        const diff = parseFloat(data) || 0;
                         const color = diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-muted';
                         const symbol = diff > 0 ? '+' : '';
                         return `<span class="${color}">${symbol}Bs. ${Math.abs(diff).toFixed(2)}</span>`;
@@ -607,7 +496,7 @@ $(document).ready(function() {
                 { 
                     data: 'porcentaje_diferencia',
                     render: function(data) {
-                        const percent = parseFloat(data);
+                        const percent = parseFloat(data) || 0;
                         const color = percent > 0 ? 'text-success' : percent < 0 ? 'text-danger' : 'text-muted';
                         const symbol = percent > 0 ? '+' : '';
                         return `<span class="${color}">${symbol}${Math.abs(percent).toFixed(2)}%</span>`;
@@ -616,19 +505,19 @@ $(document).ready(function() {
                 { 
                     data: 'profit_margin',
                     render: function(data) {
-                        return parseFloat(data).toFixed(2) + '%';
+                        return (parseFloat(data) || 0).toFixed(2) + '%';
                     }
                 },
                 { 
                     data: 'market_demand_factor',
                     render: function(data) {
-                        return parseFloat(data).toFixed(2);
+                        return (parseFloat(data) || 0).toFixed(2);
                     }
                 },
                 { 
                     data: 'competition_factor',
                     render: function(data) {
-                        return parseFloat(data).toFixed(2);
+                        return (parseFloat(data) || 0).toFixed(2);
                     }
                 }
             ],
@@ -661,7 +550,6 @@ $(document).ready(function() {
                     }
                 }
             ],
-          
             responsive: true
         });
     }

@@ -809,7 +809,7 @@ $(document).ready(function() {
             dataLabels: {
                 enabled: true,
                 formatter: function(val) {
-                    return val + (this.seriesIndex === 0 ? ' horas' : ' días');
+                    return val + (this.seriesIndex === 0 ? ' horas' : ' ');
                 }
             },
             xaxis: {
@@ -837,7 +837,7 @@ $(document).ready(function() {
             tooltip: {
                 y: {
                     formatter: function(val) {
-                        return val + (this.seriesIndex === 0 ? ' horas' : ' días');
+                        return val + (this.seriesIndex === 0 ? ' horas' : ' ');
                     }
                 }
             }
