@@ -16,7 +16,7 @@
                 <div class="col-md-9 col-12">
                     <ul class="footer-text">
                         <li>
-                            <p class="mb-0">Copyright © 2025 Selena Veneros 💖</p>
+                            <p class="mb-0">Copyright © Iknow Engineering and Selena Veneros 💖 2025</p>
                         </li>
                         <li> <a href="#"> V 1.9.0 </a></li>
                     </ul>
