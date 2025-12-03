@@ -593,48 +593,43 @@ function loadProductImages(products) {
 }
 
 // Función para renderizar las sugerencias de productos (mejorada)
- function renderProductSuggestions(suggestions) {
-
+function renderProductSuggestions(suggestions) {
   const $suggestionsRow = $('#suggestions-row');
   $suggestionsRow.empty();
+  
+  if (suggestions.length === 0) {
+    $suggestionsRow.append('<div class="col-12 text-center py-3"><p>No hay sugerencias disponibles</p></div>');
+    return;
+  }
+  
+  let loadedCount = 0;
+  
+  // Cargar imágenes para cada producto (similar a loadProductImages)
   suggestions.forEach(product => {
-    // Obtener la primera imagen de la galería o usar una por defecto
-      let firstImage = '../assets/images/ecommerce/no-image.jpg';
-      if (product.imagenes && product.imagenes.length > 0) {
-        firstImage = product.imagenes[0].ruta;
-      } else if (product.imagen_principal) {
-        firstImage = product.imagen_principal;
+    $.ajax({
+      url: `../controllers/image_controller.php?entidad_tipo=producto&entidad_id=${product.id}`,
+      type: 'GET',
+      dataType: 'json',
+      success: function(images) {
+        product.imagenes = images;
+        loadedCount++;
+        
+        // Cuando todas las imágenes estén cargadas, renderizar
+        if (loadedCount === suggestions.length) {
+          renderSuggestionCards(suggestions);
+        }
+      },
+      error: function() {
+        product.imagenes = [];
+        loadedCount++;
+        
+        if (loadedCount === suggestions.length) {
+          renderSuggestionCards(suggestions);
+        }
       }
-$suggestionsRow.append(`
-
-      <div class="col-md-4 mb-3">
-        <div class="card h-100">
-          <div class="card-body">
-            <div class="d-flex flex-column h-100">
-              <div class="text-center mb-3">
-                <img src="${firstImage}" alt="${product.producto_nombre}" 
-                     class="rounded" width="120" height="120" 
-                     onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
-              </div>
-              <h6 class="mb-1">${product.producto_nombre}</h6>
-              <small class="text-muted mb-2">${product.marca || 'Marca no especificada'}</small>
-              <p class="small text-muted flex-grow-1">${product.producto_descripcion || 'Sin descripción disponible'}</p>
-              <button class="btn btn-sm btn-primary add-suggestion" data-product-id="${product.id}">
-                <i class="ti ti-plus me-1"></i> Agregar a cotización
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `);
+    });
   });
-
-  // Asignar evento a los botones de agregar
-  $('.add-suggestion').click(function() {
-    const productId = $(this).data('product-id');
-    addSuggestedProductToCart(productId);
-  });
-} 
+}
 
 // Función auxiliar para renderizar las tarjetas de sugerencias
 function renderSuggestionCards(suggestions) {
@@ -656,7 +651,9 @@ function renderSuggestionCards(suggestions) {
           <div class="card-body">
             <div class="d-flex flex-column h-100">
               <div class="text-center mb-3">
-                <img src="${imageUrl}" alt="${product.producto_nombre}" class="rounded" width="120" height="120" onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
+                <img src="${imageUrl}" alt="${product.producto_nombre}" 
+                     class="rounded" width="120" height="120" 
+                     onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
               </div>
               <h6 class="mb-1">${product.producto_nombre}</h6>
               <small class="text-muted mb-2">${product.marca || 'Marca no especificada'}</small>
