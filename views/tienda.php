@@ -421,12 +421,7 @@ function renderProducts(products) {
                           <i class="ti ti-shopping-cart f-s-18 text-light"></i>
                         </a>
                       </li>
-                      <li>
-                        <a href="#" class="bg-success h-30 w-30 d-flex-center b-r-20 view-gallery" 
-                           data-product-id="${product.id}" title="Ver galería">
-                          <i class="ti ti-eye f-s-18 text-light"></i>
-                        </a>
-                      </li>
+                      
                     </ul>
                   </div>
                 </div>
@@ -443,9 +438,7 @@ function renderProducts(products) {
                     <button class="btn btn-sm btn-primary add-to-cart" data-product-id="${product.id}">
                       <i class="ti ti-shopping-cart me-1"></i> Agregar
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary view-gallery" data-product-id="${product.id}">
-                      <i class="ti ti-photo me-1"></i> Ver más
-                    </button>
+                    
                   </div>
                 </div>
               </div>

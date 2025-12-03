@@ -58,7 +58,7 @@ function getProductById($id) {
     $link = conectarse();
     $result = mysqli_query($link, "SELECT p.id, p.nombre as producto_nombre, p.codigo as producto_codigo, 
                                   p.descripcion as producto_descripcion, p.nombre, p.id_categoria, 
-                                  p.id_marca, m.descripcion as marca, c.descripcion as categoria, 
+                                  p.id_marca, m.nombre_marca as marca, c.descripcion as categoria, 
                                   puntos, p.estado, p.stock_actual as stock_actual, p.stock_minimo as stock_minimo 
                                   FROM productos as p 
                                   INNER JOIN marcas as m ON p.id_marca = m.id 

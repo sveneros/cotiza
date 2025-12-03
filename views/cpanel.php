@@ -805,7 +805,7 @@ $(document).ready(function() {
                     horizontal: true,
                 }
             },
-            colors: ['#3498db'],
+            colors: ['#D834DBFF'],
             dataLabels: {
                 enabled: true,
                 formatter: function(val) {
@@ -887,7 +887,7 @@ $(document).ready(function() {
                 curve: 'smooth',
                 width: [3, 3]
             },
-            colors: ['#3498db', '#2ecc71'],
+            colors: ['#96072DFF', '#076A30FF'],
             xaxis: {
                 type: 'datetime',
                 categories: fechas,

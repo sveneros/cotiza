@@ -19,7 +19,9 @@ function getFrequentItemsets($productIds, $minSupport = 0.2, $maxSuggestions = 5
         $result = mysqli_query($link, $query);
         while ($row = mysqli_fetch_assoc($result)) {
             $productNames[] = mysqli_real_escape_string($link, $row['nombre']);
-            $productNames[] = mysqli_real_escape_string($link, $row['descripcion']);
+            if (!empty($row['descripcion'])) {
+                $productNames[] = mysqli_real_escape_string($link, $row['descripcion']);
+            }
         }
     }
     
@@ -46,15 +48,18 @@ function getFrequentItemsets($productIds, $minSupport = 0.2, $maxSuggestions = 5
     
     // Obtener productos sugeridos de esos documentos
     $docIdsStr = implode(",", $documentIds);
-    $query = "SELECT p.id, p.nombre as producto_nombre, p.descripcion as producto_descripcion, 
-                     m.nombre_marca as marca, COUNT(*) as frequency 
+    $query = "SELECT DISTINCT p.id, p.nombre as producto_nombre, p.descripcion as producto_descripcion, 
+                     m.nombre_marca as marca, p.id_categoria, p.id_marca,
+                     (SELECT i.ruta FROM imagenes i WHERE i.entidad_tipo = 'producto' 
+                      AND i.entidad_id = p.id LIMIT 1) as imagen_principal,
+                     COUNT(*) as frequency 
               FROM kardex k
               JOIN productos p ON (k.producto = p.nombre OR k.descripcion = p.descripcion)
               JOIN marcas m ON p.id_marca = m.id
               WHERE k.id_tipo_documento = 5 
               AND k.id_documento IN ($docIdsStr) 
               AND p.id NOT IN (".implode(",", $productIds).")
-              GROUP BY p.id, p.nombre, p.descripcion, m.nombre_marca
+              GROUP BY p.id, p.nombre, p.descripcion, m.nombre_marca, p.id_categoria, p.id_marca
               HAVING frequency >= 1 
               ORDER BY frequency DESC 
               LIMIT $maxSuggestions";
@@ -65,8 +70,11 @@ function getFrequentItemsets($productIds, $minSupport = 0.2, $maxSuggestions = 5
         $suggestions[] = [
             'id' => $row['id'],
             'producto_nombre' => $row['producto_nombre'],
-            'producto_descripcion' => $row['producto_descripcion'],
+            'producto_descripcion' => $row['producto_descripcion'] ?? '',
             'marca' => $row['marca'],
+            'id_categoria' => $row['id_categoria'],
+            'id_marca' => $row['id_marca'],
+            'imagen_principal' => $row['imagen_principal'] ? str_replace('../', '', $row['imagen_principal']) : null,
             'frequency' => $row['frequency']
         ];
     }
@@ -82,7 +90,9 @@ function geneticAlgorithmSuggestions($productIds, $populationSize = 10, $generat
     $population = [];
     for ($i = 0; $i < $populationSize; $i++) {
         $query = "SELECT p.id, p.nombre as producto_nombre, p.descripcion as producto_descripcion, 
-                         m.nombre_marca as marca
+                         m.nombre_marca as marca, p.id_categoria, p.id_marca,
+                         (SELECT i.ruta FROM imagenes i WHERE i.entidad_tipo = 'producto' 
+                          AND i.entidad_id = p.id LIMIT 1) as imagen_principal
                   FROM productos p
                   JOIN marcas m ON p.id_marca = m.id
                   WHERE p.id NOT IN (".implode(",", $productIds).")
@@ -94,6 +104,7 @@ function geneticAlgorithmSuggestions($productIds, $populationSize = 10, $generat
             'fitness' => 0
         ];
         while ($row = mysqli_fetch_assoc($result)) {
+            $row['imagen_principal'] = $row['imagen_principal'] ? str_replace('../', '', $row['imagen_principal']) : null;
             $suggestion['products'][] = $row;
         }
         $population[] = $suggestion;
@@ -166,7 +177,9 @@ function geneticAlgorithmSuggestions($productIds, $populationSize = 10, $generat
             if (count($child['products']) < 3 && rand(0, 100) < 30) {
                 $currentIds = array_merge($productIds, array_column($child['products'], 'id'));
                 $query = "SELECT p.id, p.nombre as producto_nombre, p.descripcion as producto_descripcion, 
-                                 m.nombre_marca as marca
+                                 m.nombre_marca as marca, p.id_categoria, p.id_marca,
+                                 (SELECT i.ruta FROM imagenes i WHERE i.entidad_tipo = 'producto' 
+                                  AND i.entidad_id = p.id LIMIT 1) as imagen_principal
                           FROM productos p
                           JOIN marcas m ON p.id_marca = m.id
                           WHERE p.id NOT IN (".implode(",", $currentIds).")
@@ -174,6 +187,7 @@ function geneticAlgorithmSuggestions($productIds, $populationSize = 10, $generat
                 
                 $result = mysqli_query($link, $query);
                 if ($row = mysqli_fetch_assoc($result)) {
+                    $row['imagen_principal'] = $row['imagen_principal'] ? str_replace('../', '', $row['imagen_principal']) : null;
                     $child['products'][] = $row;
                 }
             }
@@ -228,3 +242,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);
 }
+?>

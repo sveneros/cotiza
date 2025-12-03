@@ -1,5 +1,13 @@
 <?php
 include('../layout/header_clientes.php');
+
+// Obtener el ID del cliente desde la sesión o establecer uno por defecto
+if (isset($_SESSION['sml2020_svenerossys_id_usuario_registrado'])) {
+    $id_cliente = $_SESSION['sml2020_svenerossys_id_usuario_registrado'];
+} else {
+    // Si no hay sesión, usar un cliente por defecto (modifica según tu lógica)
+    $id_cliente = 1; // Cliente por defecto para pruebas
+}
 ?>
 
 <div class="container-fluid">
@@ -23,22 +31,29 @@ include('../layout/header_clientes.php');
   </div>
   <!-- Breadcrumb end -->
 
+  <!-- Input oculto para el ID del cliente -->
+  <input type="hidden" id="id_cliente" value="<?php echo $id_cliente; ?>">
+
   <!-- Cart content start -->
   <div class="row">
     <div class="col-12">
       <div class="card">
         <div class="card-header">
           <h5>Productos en cotización</h5>
+          <div class="d-flex align-items-center">
+            <span class="badge bg-primary me-2" id="cart-count">0</span>
+            <small class="text-muted">productos en cotización</small>
+          </div>
         </div>
         <div class="card-body">
           <div class="table-responsive">
             <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Producto</th>
-                  <th>Detalles</th>
-                  <th>Cantidad</th>
-                  <th>Acciones</th>
+                  <th width="40%">Producto</th>
+                  <th width="25%">Detalles</th>
+                  <th width="20%">Cantidad</th>
+                  <th width="15%">Acciones</th>
                 </tr>
               </thead>
               <tbody id="cart-items-table">
@@ -57,7 +72,33 @@ include('../layout/header_clientes.php');
     </div>
   </div>
 
-  
+  <!-- Product Suggestions Section -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5>Productos sugeridos</h5>
+          <small class="text-muted">Basado en cotizaciones de otros clientes</small>
+        </div>
+        <div class="card-body">
+          <div id="suggestions-loading" class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <p class="mt-2">Analizando sugerencias...</p>
+          </div>
+          <div id="suggestions-container" class="d-none">
+            <div class="row" id="suggestions-row">
+              <!-- Las sugerencias se cargarán aquí -->
+            </div>
+          </div>
+          <div id="no-suggestions" class="text-center py-3 d-none">
+            <i class="ti ti-info-circle f-s-48 text-muted mb-3"></i>
+            <p>No hay sugerencias disponibles en este momento</p>
+            <p class="small text-muted">Agrega más productos a tu cotización para recibir sugerencias personalizadas</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Action buttons -->
   <div class="row mt-3">
@@ -81,33 +122,6 @@ include('../layout/header_clientes.php');
   </div>
 </div>
 
-  <!-- Product Suggestions Section -->
-  <div class="row mt-4">
-    <div class="col-12">
-      <div class="card">
-        <div class="card-header">
-          <h5>Productos sugeridos</h5>
-          <small class="text-muted">Basado en cotizaciones de otros clientes</small>
-        </div>
-        <div class="card-body">
-          <div id="suggestions-loading" class="text-center py-3">
-            <div class="spinner-border text-primary"></div>
-            <p>Analizando sugerencias...</p>
-          </div>
-          <div id="suggestions-container" class="d-none">
-            <div class="row" id="suggestions-row">
-              <!-- Las sugerencias se cargarán aquí -->
-            </div>
-          </div>
-          <div id="no-suggestions" class="text-center py-3 d-none">
-            <i class="ti ti-info-circle f-s-48 text-muted mb-3"></i>
-            <p>No hay sugerencias disponibles en este momento</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
 <!-- Modal de confirmación -->
 <div class="modal fade" id="confirmQuoteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -121,6 +135,10 @@ include('../layout/header_clientes.php');
         <div class="alert alert-info">
           <i class="ti ti-info-circle me-2"></i>
           La cotización será registrada en el sistema y podrás consultarla posteriormente.
+        </div>
+        <div class="alert alert-warning">
+          <i class="ti ti-alert-triangle me-2"></i>
+          <strong>Nota:</strong> Los precios deben ser consultados con el vendedor.
         </div>
       </div>
       <div class="modal-footer">
@@ -144,10 +162,17 @@ include('../layout/header_clientes.php');
           <i class="ti ti-circle-check text-success f-s-48 mb-3"></i>
           <h4>¡Cotización generada con éxito!</h4>
           <p id="quote-details"></p>
+          <div class="alert alert-success mt-3">
+            <i class="ti ti-check me-2"></i>
+            Tu cotización ha sido registrada. Pronto un vendedor se pondrá en contacto contigo.
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-success" data-bs-dismiss="modal">Aceptar</button>
+        <button type="button" class="btn btn-outline-success" onclick="window.location.href='tienda.php'">
+          <i class="ti ti-shopping-bag me-1"></i> Volver al catálogo
+        </button>
       </div>
     </div>
   </div>
@@ -158,10 +183,11 @@ include('../layout/footer.php');
 ?>
 
 <script>
-  let allProducts = [];
 $(document).ready(function() {
+  // Actualizar contador del carrito al iniciar
+  updateCartCount();
+  
   // Cargar carrito al iniciar
-  loadProducts();
   loadCartItems();
   
   // Evento para vaciar carrito
@@ -176,12 +202,30 @@ $(document).ready(function() {
   $('#confirm-quote').click(generateQuote);
 });
 
+// Actualizar contador del carrito
+function updateCartCount() {
+  const cart = JSON.parse(localStorage.getItem('cart')) || [];
+  const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+  $('#cart-count').text(totalItems);
+  $('#generate-quote-btn').prop('disabled', totalItems === 0);
+}
+
 // Cargar productos del carrito
 function loadCartItems() {
   const cart = JSON.parse(localStorage.getItem('cart')) || [];
+  
+  // Actualizar contador
+  updateCartCount();
+  
   // Cargar sugerencias basadas en los productos del carrito
   const productIds = cart.map(item => item.productId);
-  loadProductSuggestions(productIds);
+  if (productIds.length > 0) {
+    loadProductSuggestions(productIds);
+  } else {
+    $('#suggestions-loading').addClass('d-none');
+    $('#no-suggestions').removeClass('d-none');
+    $('#suggestions-container').addClass('d-none');
+  }
   
   if (cart.length === 0) {
     $('#cart-items-table').html(`
@@ -193,7 +237,6 @@ function loadCartItems() {
         </td>
       </tr>
     `);
-    $('#generate-quote-btn').prop('disabled', true);
     return;
   }
   
@@ -219,7 +262,11 @@ function loadCartItems() {
       $('#cart-items-table').html(`
         <tr>
           <td colspan="4" class="text-center py-5 text-danger">
-            Error al cargar los productos del carrito
+            <i class="ti ti-alert-triangle f-s-48 mb-3"></i>
+            <p>Error al cargar los productos del carrito</p>
+            <button class="btn btn-outline-primary" onclick="loadCartItems()">
+              <i class="ti ti-refresh me-1"></i> Reintentar
+            </button>
           </td>
         </tr>
       `);
@@ -233,22 +280,29 @@ function renderCartItems(cart, allProducts) {
   
   cart.forEach(item => {
     const product = allProducts.find(p => p.id == item.productId) || {};
-     // Obtener la primera imagen de la galería o usar una por defecto
-      let firstImage = 'assets/images/ecommerce/no-image.jpg';
-      if (product.imagenes && product.imagenes.length > 0) {
-        firstImage = product.imagenes[0].ruta;
-      } else if (product.imagen_principal) {
-        firstImage = product.imagen_principal;
-      }
+    
+    // Obtener imagen del producto
+    let productImage = 'assets/images/ecommerce/no-image.jpg';
+    if (product.imagenes && product.imagenes.length > 0) {
+      productImage = product.imagenes[0].ruta;
+    } else if (product.imagen_principal) {
+      productImage = product.imagen_principal;
+    }
     
     html += `
       <tr data-product-id="${item.productId}">
         <td>
           <div class="d-flex align-items-center">
-            <img class="pic-1" src="../${firstImage}" alt="${product.producto_nombre}" onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
+            <img src="../${productImage}" alt="${product.producto_nombre || 'Producto'}" 
+                 class="rounded me-3" width="60" height="60" 
+                 style="object-fit: cover;"
+                 onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
             <div>
               <h6 class="mb-0">${product.producto_nombre || 'Producto no encontrado'}</h6>
               <small class="text-muted">${product.marca || ''}</small>
+              <div>
+                <small class="text-muted">Código: ${product.producto_codigo || 'N/A'}</small>
+              </div>
             </div>
           </div>
         </td>
@@ -269,7 +323,7 @@ function renderCartItems(cart, allProducts) {
         </td>
         <td>
           <button class="btn btn-sm btn-danger remove-item">
-            <i class="ti ti-trash"></i>
+            <i class="ti ti-trash"></i> Eliminar
           </button>
         </td>
       </tr>
@@ -277,7 +331,6 @@ function renderCartItems(cart, allProducts) {
   });
   
   $('#cart-items-table').html(html);
-  $('#generate-quote-btn').prop('disabled', false);
   
   // Asignar eventos a los botones
   $('.decrease-qty').click(function() {
@@ -317,10 +370,11 @@ function renderCartItems(cart, allProducts) {
   $('.remove-item').click(function() {
     const row = $(this).closest('tr');
     const productId = row.data('product-id');
+    const productName = row.find('h6').text();
     
     Swal.fire({
       title: '¿Eliminar producto?',
-      text: "¿Estás seguro de que deseas eliminar este producto de tu cotización?",
+      text: `¿Estás seguro de que deseas eliminar "${productName}" de tu cotización?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -349,6 +403,7 @@ function updateCartItemQuantity(productId, quantity) {
   if (item) {
     item.quantity = quantity;
     localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartCount();
   }
 }
 
@@ -358,10 +413,16 @@ function removeFromCart(productId) {
   cart = cart.filter(item => item.productId != productId);
   localStorage.setItem('cart', JSON.stringify(cart));
   
-  // Actualizar contador en el header si existe
-  if ($('.header-cart .badge-notification').length) {
-    const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-    $('.header-cart .badge-notification').text(totalItems);
+  updateCartCount();
+  
+  // Recargar sugerencias con los nuevos productos
+  const productIds = cart.map(item => item.productId);
+  if (productIds.length > 0) {
+    loadProductSuggestions(productIds);
+  } else {
+    $('#suggestions-loading').addClass('d-none');
+    $('#no-suggestions').removeClass('d-none');
+    $('#suggestions-container').addClass('d-none');
   }
 }
 
@@ -387,11 +448,7 @@ function clearCart() {
     if (result.isConfirmed) {
       localStorage.setItem('cart', JSON.stringify([]));
       
-      // Actualizar contador en el header si existe
-      if ($('.header-cart .badge-notification').length) {
-        $('.header-cart .badge-notification').text('0');
-      }
-      
+      updateCartCount();
       loadCartItems(); // Recargar vista
       
       Swal.fire(
@@ -412,7 +469,7 @@ function generateQuote() {
     return;
   }
   
-  // Obtener detalles completos de los productos para los precios
+  // Obtener detalles completos de los productos
   $.ajax({
     url: '../controllers/product_controller.php',
     type: 'GET',
@@ -434,8 +491,6 @@ function prepareQuoteData(cart, allProducts) {
     const product = allProducts.find(p => p.id == item.productId);
     
     if (product) {
-      // Aquí puedes incluir el precio si es necesario, aunque dijiste que no es requerido
-      // En este ejemplo lo dejamos como 0 ya que es para cotización
       productsArr.push([
         product.id,
         product.producto_nombre,
@@ -470,7 +525,7 @@ function sendQuoteRequest(productsArr) {
   // Obtener fecha actual en formato YYYY-MM-DD
   const today = new Date();
   const fecha = today.toISOString().split('T')[0];
-  id_cliente = $('#id_cliente').val();
+  const id_cliente = $('#id_cliente').val();
   
   // Enviar datos al servicio de cotización
   $.ajax({
@@ -489,19 +544,19 @@ function sendQuoteRequest(productsArr) {
       if (response.success) {
         // Mostrar modal de éxito
         $('#quote-details').html(`
-          <p>Número de cotización: <strong>${response.document_number}</strong></p>
-          <p>Cliente: <strong>${response.client_name}</strong></p>
-          <p>Fecha: <strong>${fecha}</strong></p>
+          <div class="text-start">
+            <p><strong>Número de cotización:</strong> ${response.document_number}</p>
+            <p><strong>Cliente:</strong> ${response.client_name}</p>
+            <p><strong>Fecha:</strong> ${fecha}</p>
+            <p><strong>Productos:</strong> ${productsArr.length}</p>
+          </div>
         `);
         $('#successModal').modal('show');
         
         // Vaciar el carrito después de generar la cotización
         localStorage.setItem('cart', JSON.stringify([]));
         
-        // Actualizar contador en el header si existe
-        if ($('.header-cart .badge-notification').length) {
-          $('.header-cart .badge-notification').text('0');
-        }
+        updateCartCount();
         
         // Recargar la vista del carrito
         loadCartItems();
@@ -516,31 +571,11 @@ function sendQuoteRequest(productsArr) {
   });
 }
 
-// Cargar productos desde la API
-function loadProducts() {
-  $.ajax({
-    url: '../controllers/product_controller.php',
-    type: 'GET',
-    dataType: 'json',
-    success: function(data) {
-      allProducts = data;
-      
-      // Cargar imágenes para cada producto
-      loadProductImages(data);
-    },
-    error: function() {
-      $('#product-grid').html('<p class="text-danger">Error al cargar productos</p>');
-    }
-  });
-}
-
 // Función para cargar sugerencias de productos
 function loadProductSuggestions(productIds) {
-  if (productIds.length === 0) {
-    $('#suggestions-loading').addClass('d-none');
-    $('#no-suggestions').removeClass('d-none');
-    return;
-  }
+  $('#suggestions-loading').removeClass('d-none');
+  $('#suggestions-container').addClass('d-none');
+  $('#no-suggestions').addClass('d-none');
 
   $.ajax({
     url: '../controllers/suggestions_controller.php',
@@ -551,8 +586,7 @@ function loadProductSuggestions(productIds) {
     success: function(response) {
       $('#suggestions-loading').addClass('d-none');
       
-      if (response.success && response.suggestions.length > 0) {
-        // Cargar imágenes para cada producto
+      if (response.success && response.suggestions && response.suggestions.length > 0) {
         renderProductSuggestions(response.suggestions);
         $('#suggestions-container').removeClass('d-none');
       } else {
@@ -566,122 +600,64 @@ function loadProductSuggestions(productIds) {
   });
 }
 
-
-
-// Cargar imágenes para cada producto
-function loadProductImages(products) {
-  let productsWithImages = [];
-  let loadedCount = 0;
-  
-  products.forEach(product => {
-    $.ajax({
-      url: `../controllers/image_controller.php?entidad_tipo=producto&entidad_id=${product.id}`,
-      type: 'GET',
-      dataType: 'json',
-      success: function(images) {
-        product.imagenes = images;
-        loadedCount++; 
-       
-      },
-      error: function() {
-        product.imagenes = [];
-        loadedCount++;
-        
-      }
-    });
-  });
-}
-
-// Función para renderizar las sugerencias de productos (mejorada)
+// Función para renderizar las sugerencias de productos
 function renderProductSuggestions(suggestions) {
   const $suggestionsRow = $('#suggestions-row');
   $suggestionsRow.empty();
   
-  if (suggestions.length === 0) {
-    $suggestionsRow.append('<div class="col-12 text-center py-3"><p>No hay sugerencias disponibles</p></div>');
-    return;
-  }
-  
-  let loadedCount = 0;
-  
-  // Cargar imágenes para cada producto (similar a loadProductImages)
   suggestions.forEach(product => {
-    $.ajax({
-      url: `../controllers/image_controller.php?entidad_tipo=producto&entidad_id=${product.id}`,
-      type: 'GET',
-      dataType: 'json',
-      success: function(images) {
-        product.imagenes = images;
-        loadedCount++;
-        
-        // Cuando todas las imágenes estén cargadas, renderizar
-        if (loadedCount === suggestions.length) {
-          renderSuggestionCards(suggestions);
-        }
-      },
-      error: function() {
-        product.imagenes = [];
-        loadedCount++;
-        
-        if (loadedCount === suggestions.length) {
-          renderSuggestionCards(suggestions);
-        }
-      }
-    });
-  });
-}
-
-// Función auxiliar para renderizar las tarjetas de sugerencias
-function renderSuggestionCards(suggestions) {
-  const $suggestionsRow = $('#suggestions-row');
-  $suggestionsRow.empty();
-  
-  suggestions.forEach(product => {
-    // Determinar la imagen a mostrar (misma lógica que en renderProducts)
+    // Obtener la imagen del producto
     let imageUrl = '../assets/images/ecommerce/no-image.jpg';
-    if (product.imagenes && product.imagenes.length > 0) {
-      imageUrl = '../' + product.imagenes[0].ruta;
-    } else if (product.imagen_principal) {
+    if (product.imagen_principal) {
       imageUrl = '../' + product.imagen_principal;
     }
     
-    $suggestionsRow.append(`
-      <div class="col-md-4 mb-3">
-        <div class="card h-100">
+    const productCard = `
+      <div class="col-md-4 col-sm-6 mb-3">
+        <div class="card h-100 suggestion-card" data-product-id="${product.id}">
           <div class="card-body">
             <div class="d-flex flex-column h-100">
               <div class="text-center mb-3">
                 <img src="${imageUrl}" alt="${product.producto_nombre}" 
                      class="rounded" width="120" height="120" 
+                     style="object-fit: cover;"
                      onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
               </div>
               <h6 class="mb-1">${product.producto_nombre}</h6>
               <small class="text-muted mb-2">${product.marca || 'Marca no especificada'}</small>
-              <p class="small text-muted flex-grow-1">${product.producto_descripcion || 'Sin descripción disponible'}</p>
-              <button class="btn btn-sm btn-primary add-suggestion" data-product-id="${product.id}">
-                <i class="ti ti-plus me-1"></i> Agregar a cotización
-              </button>
+              <p class="small text-muted flex-grow-1 mb-3">${product.producto_descripcion || 'Sin descripción disponible'}</p>
+              <div class="mt-auto">
+                <button class="btn btn-sm btn-primary w-100 add-suggestion" 
+                        data-product-id="${product.id}"
+                        data-product-name="${product.producto_nombre}">
+                  <i class="ti ti-plus me-1"></i> Agregar a cotización
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    `);
+    `;
+    
+    $suggestionsRow.append(productCard);
   });
   
-  // Asignar evento a los botones de agregar (sin cambios)
+  // Asignar evento a los botones de agregar
   $('.add-suggestion').click(function() {
     const productId = $(this).data('product-id');
-    addSuggestedProductToCart(productId);
+    const productName = $(this).data('product-name');
+    addSuggestedProductToCart(productId, productName);
   });
 }
 
 // Función para agregar un producto sugerido al carrito
-function addSuggestedProductToCart(productId) {
+function addSuggestedProductToCart(productId, productName) {
   // Mostrar loading
   const $btn = $(`.add-suggestion[data-product-id="${productId}"]`);
+  const originalText = $btn.html();
   $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Agregando...');
   
-  // Obtener detalles del producto
+  // Obtener detalles del producto desde la API principal
   $.ajax({
     url: '../controllers/product_controller.php',
     type: 'GET',
@@ -698,20 +674,29 @@ function addSuggestedProductToCart(productId) {
         if (existingItem) {
           existingItem.quantity += 1;
         } else {
+          // Obtener imagen del producto
+          let productImage = 'assets/images/ecommerce/no-image.jpg';
+          if (product.imagenes && product.imagenes.length > 0) {
+            productImage = product.imagenes[0].ruta;
+          } else if (product.imagen_principal) {
+            productImage = product.imagen_principal;
+          }
+          
           cart.push({
             productId: product.id,
             quantity: 1,
-            image: product.imagenes && product.imagenes.length > 0 ? product.imagenes[0].ruta : null
+            name: product.producto_nombre,
+            image: productImage
           });
         }
         
         localStorage.setItem('cart', JSON.stringify(cart));
         
-        // Actualizar contador en el header si existe
-        if ($('.header-cart .badge-notification').length) {
-          const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
-          $('.header-cart .badge-notification').text(totalItems);
-        }
+        // Actualizar contador
+        updateCartCount();
+        
+        // Recargar la vista del carrito
+        loadCartItems();
         
         // Mostrar feedback
         Swal.fire({
@@ -722,20 +707,16 @@ function addSuggestedProductToCart(productId) {
           showConfirmButton: false
         });
         
-        // Recargar el carrito
-        loadCartItems();
-        
-        // Actualizar sugerencias
-        const productIds = cart.map(item => item.productId);
-        loadProductSuggestions(productIds);
+        // Restaurar botón
+        $btn.prop('disabled', false).html(originalText);
       } else {
         Swal.fire('Error', 'No se pudo obtener la información del producto', 'error');
-        $btn.prop('disabled', false).html('<i class="ti ti-plus me-1"></i> Agregar a cotización');
+        $btn.prop('disabled', false).html(originalText);
       }
     },
     error: function() {
       Swal.fire('Error', 'Error al cargar el producto', 'error');
-      $btn.prop('disabled', false).html('<i class="ti ti-plus me-1"></i> Agregar a cotización');
+      $btn.prop('disabled', false).html(originalText);
     }
   });
 }
@@ -767,6 +748,25 @@ function addSuggestedProductToCart(productId) {
 
 #successModal .modal-footer {
   border-top: none;
-  justify-content: center;
+}
+
+.suggestion-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e9ecef;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+#suggestions-loading .spinner-border {
+  width: 2rem;
+  height: 2rem;
+}
+
+#cart-count {
+  font-size: 0.9rem;
+  padding: 0.35rem 0.65rem;
 }
 </style>
