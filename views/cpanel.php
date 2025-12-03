@@ -805,7 +805,7 @@ $(document).ready(function() {
                     horizontal: true,
                 }
             },
-            colors: ['#D834DBFF'],
+            colors: ['#D834DBFF', '#09AD4DFF'],
             dataLabels: {
                 enabled: true,
                 formatter: function(val) {

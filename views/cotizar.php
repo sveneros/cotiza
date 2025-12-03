@@ -250,13 +250,14 @@ function loadCartItems() {
     </tr>
   `);
   
-  // Obtener detalles completos de los productos
+  // Obtener detalles completos de los productos CON SUS IMÁGENES
   $.ajax({
     url: '../controllers/product_controller.php',
     type: 'GET',
     dataType: 'json',
     success: function(products) {
-      renderCartItems(cart, products);
+      // Ahora cargamos las imágenes para cada producto
+      loadCartProductsWithImages(cart, products);
     },
     error: function() {
       $('#cart-items-table').html(`
@@ -274,61 +275,169 @@ function loadCartItems() {
   });
 }
 
-// Renderizar productos del carrito
-function renderCartItems(cart, allProducts) {
-  let html = '';
+// Cargar productos del carrito con sus imágenes
+function loadCartProductsWithImages(cart, allProducts) {
+  let productsWithImages = [];
+  let loadedCount = 0;
   
-  cart.forEach(item => {
-    const product = allProducts.find(p => p.id == item.productId) || {};
+  if (allProducts.length === 0) {
+    renderCartItems(cart, []);
+    return;
+  }
+  
+  // Para cada producto en el carrito, buscar su información completa
+  cart.forEach(cartItem => {
+    const product = allProducts.find(p => p.id == cartItem.productId);
     
-    // Obtener imagen del producto
-    let productImage = 'assets/images/ecommerce/no-image.jpg';
-    if (product.imagenes && product.imagenes.length > 0) {
-      productImage = product.imagenes[0].ruta;
-    } else if (product.imagen_principal) {
-      productImage = product.imagen_principal;
+    if (!product) {
+      // Si no encontramos el producto, usar información básica del carrito
+      productsWithImages.push({
+        ...cartItem,
+        producto_nombre: cartItem.name || 'Producto no encontrado',
+        marca: '',
+        producto_codigo: '',
+        producto_descripcion: '',
+        imagenes: []
+      });
+      loadedCount++;
+      
+      if (loadedCount === cart.length) {
+        renderCartItems(cart, productsWithImages);
+      }
+      return;
     }
     
-    html += `
-      <tr data-product-id="${item.productId}">
-        <td>
-          <div class="d-flex align-items-center">
-            <img src="../${productImage}" alt="${product.producto_nombre || 'Producto'}" 
-                 class="rounded me-3" width="60" height="60" 
-                 style="object-fit: cover;"
-                 onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
-            <div>
-              <h6 class="mb-0">${product.producto_nombre || 'Producto no encontrado'}</h6>
-              <small class="text-muted">${product.marca || ''}</small>
-              <div>
-                <small class="text-muted">Código: ${product.producto_codigo || 'N/A'}</small>
-              </div>
-            </div>
-          </div>
-        </td>
-        <td>
-          <small class="text-muted">${product.producto_descripcion || 'Sin descripción'}</small>
-        </td>
-        <td>
-          <div class="input-group quantity-selector" style="max-width: 120px;">
-            <button class="btn btn-outline-secondary decrease-qty" type="button">
-              <i class="ti ti-minus"></i>
-            </button>
-            <input type="number" class="form-control text-center quantity-input" 
-                   value="${item.quantity}" min="1">
-            <button class="btn btn-outline-secondary increase-qty" type="button">
-              <i class="ti ti-plus"></i>
-            </button>
-          </div>
-        </td>
-        <td>
-          <button class="btn btn-sm btn-danger remove-item">
-            <i class="ti ti-trash"></i> Eliminar
-          </button>
+    // Si el producto ya tiene imágenes en la respuesta, usarlas
+    if (product.imagenes && Array.isArray(product.imagenes) && product.imagenes.length > 0) {
+      productsWithImages.push({
+        ...product,
+        image: product.imagenes[0].ruta || cartItem.image
+      });
+      loadedCount++;
+    } else {
+      // Si no tiene imágenes, cargarlas desde el controlador de imágenes
+      $.ajax({
+        url: `../controllers/image_controller.php?entidad_tipo=producto&entidad_id=${product.id}`,
+        type: 'GET',
+        dataType: 'json',
+        success: function(images) {
+          product.imagenes = images;
+          product.image = images && images.length > 0 ? images[0].ruta : cartItem.image;
+          productsWithImages.push(product);
+          loadedCount++;
+          
+          if (loadedCount === cart.length) {
+            renderCartItems(cart, productsWithImages);
+          }
+        },
+        error: function() {
+          // Si hay error, usar imagen del carrito o por defecto
+          product.imagenes = [];
+          product.image = cartItem.image || 'assets/images/ecommerce/no-image.jpg';
+          productsWithImages.push(product);
+          loadedCount++;
+          
+          if (loadedCount === cart.length) {
+            renderCartItems(cart, productsWithImages);
+          }
+        }
+      });
+    }
+    
+    // Verificar si ya cargamos todos los productos
+    if (product.imagenes && Array.isArray(product.imagenes) && product.imagenes.length > 0) {
+      if (loadedCount === cart.length) {
+        renderCartItems(cart, productsWithImages);
+      }
+    }
+  });
+}
+
+// Renderizar productos del carrito CON IMÁGENES
+function renderCartItems(cart, productsWithImages) {
+  let html = '';
+  
+  if (productsWithImages.length === 0) {
+    html = `
+      <tr>
+        <td colspan="4" class="text-center py-5">
+          <i class="ti ti-alert-circle f-s-48 text-warning mb-3"></i>
+          <p>No se pudieron cargar los detalles de los productos</p>
         </td>
       </tr>
     `;
-  });
+  } else {
+    cart.forEach(cartItem => {
+      const product = productsWithImages.find(p => p.id == cartItem.productId) || {};
+      
+      // Determinar la imagen a mostrar
+      let productImage = 'assets/images/ecommerce/no-image.jpg';
+      
+      // 1. Intentar con imagen del producto cargada
+      if (product.image) {
+        productImage = product.image;
+      }
+      // 2. Intentar con imagen del carrito
+      else if (cartItem.image) {
+        productImage = cartItem.image;
+      }
+      // 3. Intentar con imágenes del producto
+      else if (product.imagenes && product.imagenes.length > 0) {
+        productImage = product.imagenes[0].ruta;
+      }
+      
+      // Asegurar que la ruta no comience con ../
+      if (productImage.startsWith('../')) {
+        productImage = productImage.substring(3);
+      }
+      
+      html += `
+        <tr data-product-id="${cartItem.productId}">
+          <td>
+            <div class="d-flex align-items-center">
+              <div class="position-relative me-3">
+                <img src="../${productImage}" alt="${product.producto_nombre || cartItem.name || 'Producto'}" 
+                     class="rounded" width="70" height="70" 
+                     style="object-fit: cover;"
+                     onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary">
+                  ${cartItem.quantity}
+                </span>
+              </div>
+              <div>
+                <h6 class="mb-0">${product.producto_nombre || cartItem.name || 'Producto no encontrado'}</h6>
+                <small class="text-muted">${product.marca || ''}</small>
+                <div>
+                  <small class="text-muted">Código: ${product.producto_codigo || 'N/A'}</small>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <small class="text-muted">${product.producto_descripcion || 'Sin descripción'}</small>
+            ${product.puntos ? `<div><small class="text-warning"><i class="ti ti-star me-1"></i>${product.puntos} puntos</small></div>` : ''}
+          </td>
+          <td>
+            <div class="input-group quantity-selector" style="max-width: 140px;">
+              <button class="btn btn-outline-secondary decrease-qty" type="button">
+                <i class="ti ti-minus"></i>
+              </button>
+              <input type="number" class="form-control text-center quantity-input" 
+                     value="${cartItem.quantity}" min="1">
+              <button class="btn btn-outline-secondary increase-qty" type="button">
+                <i class="ti ti-plus"></i>
+              </button>
+            </div>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-danger remove-item">
+              <i class="ti ti-trash"></i> Eliminar
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+  }
   
   $('#cart-items-table').html(html);
   
@@ -370,7 +479,7 @@ function renderCartItems(cart, allProducts) {
   $('.remove-item').click(function() {
     const row = $(this).closest('tr');
     const productId = row.data('product-id');
-    const productName = row.find('h6').text();
+    const productName = row.find('h6').text().trim();
     
     Swal.fire({
       title: '¿Eliminar producto?',
@@ -404,6 +513,9 @@ function updateCartItemQuantity(productId, quantity) {
     item.quantity = quantity;
     localStorage.setItem('cart', JSON.stringify(cart));
     updateCartCount();
+    
+    // Actualizar el badge en la fila
+    $(`tr[data-product-id="${productId}"] .badge`).text(quantity);
   }
 }
 
@@ -607,9 +719,12 @@ function renderProductSuggestions(suggestions) {
   
   suggestions.forEach(product => {
     // Obtener la imagen del producto
-    let imageUrl = '../assets/images/ecommerce/no-image.jpg';
+    let imageUrl = 'assets/images/ecommerce/no-image.jpg';
     if (product.imagen_principal) {
-      imageUrl = '../' + product.imagen_principal;
+      imageUrl = product.imagen_principal;
+      if (imageUrl.startsWith('../')) {
+        imageUrl = imageUrl.substring(3);
+      }
     }
     
     const productCard = `
@@ -618,7 +733,7 @@ function renderProductSuggestions(suggestions) {
           <div class="card-body">
             <div class="d-flex flex-column h-100">
               <div class="text-center mb-3">
-                <img src="${imageUrl}" alt="${product.producto_nombre}" 
+                <img src="../${imageUrl}" alt="${product.producto_nombre}" 
                      class="rounded" width="120" height="120" 
                      style="object-fit: cover;"
                      onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
@@ -665,6 +780,12 @@ function addSuggestedProductToCart(productId, productName) {
     dataType: 'json',
     success: function(product) {
       if (product && product.id) {
+        // Obtener imagen del producto
+        let productImage = 'assets/images/ecommerce/no-image.jpg';
+        if (product.imagenes && product.imagenes.length > 0) {
+          productImage = product.imagenes[0].ruta;
+        }
+        
         // Agregar al carrito
         let cart = JSON.parse(localStorage.getItem('cart')) || [];
         
@@ -674,14 +795,6 @@ function addSuggestedProductToCart(productId, productName) {
         if (existingItem) {
           existingItem.quantity += 1;
         } else {
-          // Obtener imagen del producto
-          let productImage = 'assets/images/ecommerce/no-image.jpg';
-          if (product.imagenes && product.imagenes.length > 0) {
-            productImage = product.imagenes[0].ruta;
-          } else if (product.imagen_principal) {
-            productImage = product.imagen_principal;
-          }
-          
           cart.push({
             productId: product.id,
             quantity: 1,
@@ -768,5 +881,31 @@ function addSuggestedProductToCart(productId, productName) {
 #cart-count {
   font-size: 0.9rem;
   padding: 0.35rem 0.65rem;
+}
+
+/* Mejoras visuales para las imágenes del carrito */
+.table tbody tr:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+.table tbody tr td:first-child {
+  border-left: 3px solid transparent;
+}
+
+.table tbody tr:hover td:first-child {
+  border-left-color: #0d6efd;
+}
+
+.position-relative .badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Estilo para cuando no hay imágenes */
+img[src*="no-image.jpg"] {
+  opacity: 0.7;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 8px;
 }
 </style>
