@@ -158,8 +158,10 @@ include('../layout/footer.php');
 ?>
 
 <script>
+  let allProducts = [];
 $(document).ready(function() {
   // Cargar carrito al iniciar
+  loadProducts();
   loadCartItems();
   
   // Evento para vaciar carrito
@@ -231,14 +233,19 @@ function renderCartItems(cart, allProducts) {
   
   cart.forEach(item => {
     const product = allProducts.find(p => p.id == item.productId) || {};
-    const image = item.image || 'assets/images/ecommerce/no-image.jpg';
+     // Obtener la primera imagen de la galería o usar una por defecto
+      let firstImage = 'assets/images/ecommerce/no-image.jpg';
+      if (product.imagenes && product.imagenes.length > 0) {
+        firstImage = product.imagenes[0].ruta;
+      } else if (product.imagen_principal) {
+        firstImage = product.imagen_principal;
+      }
     
     html += `
       <tr data-product-id="${item.productId}">
         <td>
           <div class="d-flex align-items-center">
-            <img src="../${image}" alt="${product.producto_nombre || 'Producto'}" 
-                 class="rounded me-3" width="60" height="60" onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
+            <img class="pic-1" src="../${firstImage}" alt="${product.producto_nombre}" onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
             <div>
               <h6 class="mb-0">${product.producto_nombre || 'Producto no encontrado'}</h6>
               <small class="text-muted">${product.marca || ''}</small>
@@ -509,6 +516,24 @@ function sendQuoteRequest(productsArr) {
   });
 }
 
+// Cargar productos desde la API
+function loadProducts() {
+  $.ajax({
+    url: '../controllers/product_controller.php',
+    type: 'GET',
+    dataType: 'json',
+    success: function(data) {
+      allProducts = data;
+      
+      // Cargar imágenes para cada producto
+      loadProductImages(data);
+    },
+    error: function() {
+      $('#product-grid').html('<p class="text-danger">Error al cargar productos</p>');
+    }
+  });
+}
+
 // Función para cargar sugerencias de productos
 function loadProductSuggestions(productIds) {
   if (productIds.length === 0) {
@@ -527,6 +552,7 @@ function loadProductSuggestions(productIds) {
       $('#suggestions-loading').addClass('d-none');
       
       if (response.success && response.suggestions.length > 0) {
+        // Cargar imágenes para cada producto
         renderProductSuggestions(response.suggestions);
         $('#suggestions-container').removeClass('d-none');
       } else {
@@ -540,21 +566,53 @@ function loadProductSuggestions(productIds) {
   });
 }
 
-// Función para renderizar las sugerencias de productos
-function renderProductSuggestions(suggestions) {
+
+
+// Cargar imágenes para cada producto
+function loadProductImages(products) {
+  let productsWithImages = [];
+  let loadedCount = 0;
+  
+  products.forEach(product => {
+    $.ajax({
+      url: `../controllers/image_controller.php?entidad_tipo=producto&entidad_id=${product.id}`,
+      type: 'GET',
+      dataType: 'json',
+      success: function(images) {
+        product.imagenes = images;
+        loadedCount++; 
+       
+      },
+      error: function() {
+        product.imagenes = [];
+        loadedCount++;
+        
+      }
+    });
+  });
+}
+
+// Función para renderizar las sugerencias de productos (mejorada)
+ function renderProductSuggestions(suggestions) {
+
   const $suggestionsRow = $('#suggestions-row');
   $suggestionsRow.empty();
-  
   suggestions.forEach(product => {
-    const imageUrl = '../assets/images/ecommerce/no-image.jpg';
-    
-    $suggestionsRow.append(`
+    // Obtener la primera imagen de la galería o usar una por defecto
+      let firstImage = '../assets/images/ecommerce/no-image.jpg';
+      if (product.imagenes && product.imagenes.length > 0) {
+        firstImage = product.imagenes[0].ruta;
+      } else if (product.imagen_principal) {
+        firstImage = product.imagen_principal;
+      }
+$suggestionsRow.append(`
+
       <div class="col-md-4 mb-3">
         <div class="card h-100">
           <div class="card-body">
             <div class="d-flex flex-column h-100">
               <div class="text-center mb-3">
-                <img src="${imageUrl}" alt="${product.producto_nombre}" 
+                <img src="${firstImage}" alt="${product.producto_nombre}" 
                      class="rounded" width="120" height="120" 
                      onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
               </div>
@@ -570,8 +628,50 @@ function renderProductSuggestions(suggestions) {
       </div>
     `);
   });
-  
+
   // Asignar evento a los botones de agregar
+  $('.add-suggestion').click(function() {
+    const productId = $(this).data('product-id');
+    addSuggestedProductToCart(productId);
+  });
+} 
+
+// Función auxiliar para renderizar las tarjetas de sugerencias
+function renderSuggestionCards(suggestions) {
+  const $suggestionsRow = $('#suggestions-row');
+  $suggestionsRow.empty();
+  
+  suggestions.forEach(product => {
+    // Determinar la imagen a mostrar (misma lógica que en renderProducts)
+    let imageUrl = '../assets/images/ecommerce/no-image.jpg';
+    if (product.imagenes && product.imagenes.length > 0) {
+      imageUrl = '../' + product.imagenes[0].ruta;
+    } else if (product.imagen_principal) {
+      imageUrl = '../' + product.imagen_principal;
+    }
+    
+    $suggestionsRow.append(`
+      <div class="col-md-4 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex flex-column h-100">
+              <div class="text-center mb-3">
+                <img src="${imageUrl}" alt="${product.producto_nombre}" class="rounded" width="120" height="120" onerror="this.src='../assets/images/ecommerce/no-image.jpg'">
+              </div>
+              <h6 class="mb-1">${product.producto_nombre}</h6>
+              <small class="text-muted mb-2">${product.marca || 'Marca no especificada'}</small>
+              <p class="small text-muted flex-grow-1">${product.producto_descripcion || 'Sin descripción disponible'}</p>
+              <button class="btn btn-sm btn-primary add-suggestion" data-product-id="${product.id}">
+                <i class="ti ti-plus me-1"></i> Agregar a cotización
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  });
+  
+  // Asignar evento a los botones de agregar (sin cambios)
   $('.add-suggestion').click(function() {
     const productId = $(this).data('product-id');
     addSuggestedProductToCart(productId);
